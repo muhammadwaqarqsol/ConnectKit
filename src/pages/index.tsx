@@ -9,6 +9,7 @@ import {
 } from "wagmi";
 import Image from "next/image";
 import MintNft from "../components/mintNft";
+import { ERC20 } from "../components/ercMint";
 
 export default function Home() {
 
@@ -95,6 +96,7 @@ export default function Home() {
           <div>
             <h1 style={{display:"flex",alignContent:"center",alignItems:"center"}}>Web3Modal</h1>
             <MintNft />
+            <ERC20 />
           </div>
         </div>
       </main>

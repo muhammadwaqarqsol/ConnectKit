@@ -1,72 +1,41 @@
 import "../../styles/globals.css";
 import type { AppProps } from 'next/app';
 import { WagmiConfig, configureChains, createConfig,Chain, mainnet} from 'wagmi';
-import { polygon, polygonMumbai } from 'wagmi/chains';  // Assuming you only need polygonMumbai chain
+import { polygonMumbai } from 'wagmi/chains';  // Assuming you only need polygonMumbai chain
 import { ConnectKitProvider, getDefaultConfig } from 'connectkit';
-import { avalancheChain } from "../components/customChains"; 
+import { bsc ,avalanche} from "../components/customChains"; 
 import { jsonRpcProvider } from "wagmi/providers/jsonRpc";
 import { infuraProvider } from "wagmi/providers/infura";
-
+import { WalletConnectConnector } from '@wagmi/connectors/walletConnect';
+import { CoinbaseWalletConnector } from 'wagmi/connectors/coinbaseWallet';
+import { InjectedConnector } from 'wagmi/connectors/injected';
+import { MetaMaskConnector } from 'wagmi/connectors/metaMask';
+import { LedgerConnector } from '@wagmi/connectors/ledger';
 const infuraId = process.env.NEXT_PUBLIC_INFURA_ID;
 if (infuraId === undefined) {
   throw new Error("NEXT_PUBLIC_INFURA_ID is not defined in the environment.");
 }
 
-// interface Chain {
-//   id: number;
-//   name: string;
-//   network: string;
-//   nativeCurrency: {
-//     decimals: number;
-//     name: string;
-//     symbol: string;
-//   };
-//   rpcUrls: {
-//     default: string; // This should be of type string, not the full object
-//   };
-//   blockExplorers: {
-//     default: {
-//       name: string;
-//       url: string;
-//     };
-//     snowtrace:{
-//       name:string;
-//       url:string;
-//     }
-//   };
-//   testnet: boolean;
-// }
-//  const avalanche:Chain = {
-//   id: 43_114,
-//   name: "Avalanche",
-//   network:"mainnet",
-//   nativeCurrency: {
-//     decimals: 18,
-//     name: "Avalanche",
-//     symbol: "AVAX",
-//   },
-//   rpcUrls: {
-//     default: "https://api.avax.network/ext/bc/C/rpc",
-//   },
-//   blockExplorers: {
-//     default: { name: "SnowTrace", url: "https://snowtrace.io" },
-//     snowtrace: { name: "SnowTrace", url: "https://snowtrace.io" },
-//   },
-//   testnet: false,
-// };
+const supportedChains: Chain[] = [polygonMumbai,bsc, avalanche]; // Add more chains if needed
 
-const { webSocketPublicClient,publicClient,chains } = configureChains(
-  [polygonMumbai,polygon,mainnet],
+const { webSocketPublicClient, publicClient, chains } = configureChains(
+  supportedChains,
   [
     infuraProvider({ apiKey: infuraId }),
     jsonRpcProvider({
-      rpc: (chain:any) => {
-        if (chain.id !== avalancheChain.id) return null;
-        return { http: chain.rpcUrls.default };
+      rpc: (chain) => {
+        const supportedChain = supportedChains.find(supported => supported.id === chain.id);
+        if (supportedChain) {
+          const { http, webSocket } = chain.rpcUrls.default;
+          return { http: http[0], webSocket: webSocket ? webSocket[0] : undefined };
+        }
+        return null;
       },
     }),
-  ],
+  ]
 );
+
+
 const config = createConfig(
   getDefaultConfig({
     publicClient,
@@ -75,6 +44,35 @@ const config = createConfig(
     appName: 'ConnectKit',
     walletConnectProjectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
     autoConnect:true,
+    infuraId:infuraId,
+    connectors:[
+    new MetaMaskConnector({ chains }),
+    new CoinbaseWalletConnector({
+      chains,
+      options: {
+        appName: 'wagmi',
+      },
+    }),
+      new InjectedConnector({
+        chains,
+        options: {
+          name: 'Injected',
+          shimDisconnect: true,
+        },
+      }),
+      new WalletConnectConnector({
+        chains,
+        options:{
+          projectId:process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
+        }
+      }),
+      new LedgerConnector({
+        chains,
+        options:{
+          projectId:process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID!,
+        }
+      })
+    ]
   })
 );
 
